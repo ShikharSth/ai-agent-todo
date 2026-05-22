@@ -43,12 +43,14 @@ Allowed actions:
 - create_task
 - list_tasks
 - mark_done
+- mark_undone
 - delete_task
+- delete_multiple_tasks
 - reply
 
 JSON format:
 {{
-  "action": "create_task|list_tasks|mark_done|delete_task|reply",
+  "action": "create_task|list_tasks|mark_done|mark_undone|delete_task|delete_multiple_task|reply",
   "args": {{}},
   "reply": "short natural language reply"
 }}
@@ -107,12 +109,27 @@ def run_agent(message: str):
                 task.completed = True
                 task.save()
                 reply = reply or f"Marked task #{task_id} as done."
+    
+    elif action == "mark_undone":
+        task_id = args.get("task_id")
+        if task_id:
+            task = Task.objects.filter(id=task_id).first()
+            if task:
+                task.completed = False
+                task.save()
+                reply = reply or f"Marked task #{task_id} as not done."
 
     elif action == "delete_task":
         task_id = args.get("task_id")
         if task_id:
             Task.objects.filter(id=task_id).delete()
             reply = reply or f"Deleted task #{task_id}."
+    
+    elif action == "delete_multiple_tasks":
+        task_ids = args.get("task_ids", [])
+        if task_ids:
+            deleted_count, _ = Task.objects.filter(id__in=task_ids).delete()
+            reply = reply or f"Deleted {deleted_count} task(s)."
 
     # Return fresh tasks after action
     updated_tasks = Task.objects.all().order_by("-created_at")
